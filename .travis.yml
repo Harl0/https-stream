@@ -2,13 +2,12 @@
 sudo: false
 language: scala
 scala:
-- 2.11.6
+- 2.11.8
 jdk:
 - oraclejdk8
 cache:
   directories:
     - '$HOME/.ivy2/cache'
-branches:
-  except:
-    - master
+notifications:
+  - email: false
     

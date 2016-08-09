@@ -3,7 +3,7 @@
 
 [![Build Status](https://travis-ci.org/hmrc/https-stream.svg?branch=master)](https://travis-ci.org/hmrc/https-stream) [ ![Download](https://api.bintray.com/packages/hmrc/releases/https-stream/images/download.svg) ](https://bintray.com/hmrc/releases/https-stream/_latestVersion)
 
-This is a placeholder README.md for a new repository
+https-stream is a scala library for streaming over https within Play frameworks Iteratee system.
 
 ### License
 
