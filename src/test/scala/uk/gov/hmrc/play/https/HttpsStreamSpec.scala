@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.play.https
 
-import java.io.OutputStream
+import java.io.{InputStream, OutputStream}
 import javax.net.ssl.HttpsURLConnection
 
 import org.mockito.Mockito._
@@ -24,6 +24,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 import play.api.libs.iteratee.{Enumerator, Iteratee}
+import play.api.mvc.{Result, Results}
 import play.mvc.Http.Status
 
 import scala.concurrent.ExecutionContext
@@ -59,6 +60,8 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
     val mockConnection = mock[HttpsURLConnection]
     val mockOutputStream = mock[OutputStream]
     when(mockConnection.getOutputStream).thenReturn(mockOutputStream)
+    val mockInputStream = mock[InputStream]
+    when(mockConnection.getInputStream).thenReturn(mockInputStream)
 
     val stream = new HttpsStream {
       override def openConnection(url: String) = mockConnection
@@ -74,15 +77,21 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
   }
 
   it should "return a response code when one is received" in {
-    val result = Status.OK
+    val result = Results.Ok("test")
 
     val mockConnection = mock[HttpsURLConnection]
 
     val mockOutputStream = mock[OutputStream]
 
+    val mockInputStream = mock[InputStream]
+
     when(mockConnection.getOutputStream).thenReturn(mockOutputStream)
 
-    when(mockConnection.getResponseCode).thenReturn(result)
+    when(mockConnection.getResponseCode).thenReturn(Status.OK)
+
+    when(mockConnection.getInputStream).thenReturn(mockInputStream)
+
+    when(mockInputStream.toString).thenReturn("test")
 
     val stream = new HttpsStream {
       override def openConnection(url: String) = mockConnection
@@ -90,8 +99,11 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
 
     val res = Enumerator("test".getBytes).run(stream.stream(""))
 
-    whenReady(res) {
-      _ shouldBe result
+    whenReady(res) {res =>
+      res.header.status shouldBe Status.OK
+      whenReady(res.body.run(Iteratee.consume[Array[Byte]]())){
+        body => new String(body) shouldBe "test"
+      }
     }
   }
   "HttpsStream#openConnection" should "correctly configure the httpConnection" in {
