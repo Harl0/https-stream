@@ -20,6 +20,7 @@ import java.io.{InputStream, OutputStream}
 import javax.net.ssl.HttpsURLConnection
 
 import org.mockito.Mockito._
+import org.mockito.stubbing.Answer
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
@@ -36,7 +37,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with MockitoSugar {
   "HttpsStream#stream" should "return a failed future when the connection fails to start" in {
     val stream = new HttpsStream {
-      override def openConnection(url: String) = throw new Exception
+      override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = throw new Exception
     }
 
     val res = Enumerator("test".getBytes).run(stream.stream(""))
@@ -64,7 +65,7 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
     when(mockConnection.getInputStream).thenReturn(mockInputStream)
 
     val stream = new HttpsStream {
-      override def openConnection(url: String) = mockConnection
+      override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = mockConnection
     }
 
     val bytes = "test".getBytes
@@ -94,10 +95,10 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
     when(mockInputStream.toString).thenReturn("test")
 
     val stream = new HttpsStream {
-      override def openConnection(url: String) = mockConnection
+      override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = mockConnection
     }
 
-    val res = Enumerator("test".getBytes).run(stream.stream(""))
+    val res = Enumerator("test".getBytes).run(stream.stream("", Map("hello" -> "world")))
 
     whenReady(res) {res =>
       res.header.status shouldBe Status.OK
@@ -106,14 +107,16 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
       }
     }
   }
+
   "HttpsStream#openConnection" should "correctly configure the httpConnection" in {
     val stream = new HttpsStream {
-      def testReflector(url: String) = openConnection(url)
+      def testReflector(url: String) = openConnection(url, Map("hello" -> "world"))
     }
 
     val res = stream.testReflector("https://localhost")
 
     res.getDoOutput shouldBe true
     res.getRequestMethod shouldBe "POST"
+    res.getRequestProperty("hello") shouldBe "world"
   }
 }
