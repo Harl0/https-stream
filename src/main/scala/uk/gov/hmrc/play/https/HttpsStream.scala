@@ -20,7 +20,8 @@ import java.io.OutputStream
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
-import play.api.libs.iteratee.Iteratee
+import play.api.libs.iteratee.{Enumerator, Iteratee}
+import play.api.mvc.{ResponseHeader, Result, Results}
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -36,9 +37,10 @@ trait HttpsStream {
       .map{_ =>
         out.foreach(_.close())
         conn.map { conn =>
-          val resp = conn.getResponseCode
+          val code = conn.getResponseCode
+          val body = conn.getInputStream.toString
           conn.disconnect()
-          resp
+          Results.Status(code)(body)
         }.get
       }
   }
