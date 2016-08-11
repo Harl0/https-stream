@@ -16,12 +16,11 @@
 
 package uk.gov.hmrc.play.https
 
-import java.io.OutputStream
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
-import play.api.libs.iteratee.{Enumerator, Iteratee}
-import play.api.mvc.{ResponseHeader, Result, Results}
+import play.api.libs.iteratee.Iteratee
+import play.api.mvc.Results
 
 import scala.concurrent.ExecutionContext
 import scala.util.Try
@@ -29,8 +28,8 @@ import scala.util.Try
 object HttpsStream extends HttpsStream
 
 trait HttpsStream {
-  def stream(url: String)(implicit ec: ExecutionContext) = {
-    val conn = Try(openConnection(url))
+  def stream(url: String, extraHeaders: Map[String, String] = Map.empty)(implicit ec: ExecutionContext) = {
+    val conn = Try(openConnection(url, extraHeaders))
     val out = conn.map(_.getOutputStream)
 
     Iteratee.foreach[Array[Byte]](bytes => out.get.write(bytes))
@@ -45,10 +44,11 @@ trait HttpsStream {
       }
   }
 
-  protected def openConnection(url: String) = {
+  protected def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = {
     val conn = new URL(url).openConnection().asInstanceOf[HttpsURLConnection]
     conn.setDoOutput(true)
     conn.setRequestMethod("POST")
+    extraHeaders.foreach{ case (key, value) => conn.setRequestProperty(key, value) }
     conn
   }
 }
