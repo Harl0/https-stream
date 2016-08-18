@@ -34,12 +34,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 class HttpStreamSpec extends FlatSpec with Matchers with ScalaFutures with MockitoSugar {
   "HttpStream#stream" should "return a failed future when the connection fails to start" in {
-    val streamTLS = new HttpsStream {
-      override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = throw new Exception
-    }
-
-
-    val res = Enumerator("test".getBytes).run(streamTLS.stream(""))
+    val stream = HttpsStream
+    val res = Enumerator("test".getBytes).run(stream.stream(""))
 
     whenReady(res.failed) {
       _ shouldBe an[Exception]

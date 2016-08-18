@@ -26,6 +26,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import play.api.libs.iteratee.{Enumerator, Iteratee}
 import play.api.mvc.Results
 import play.mvc.Http.Status
+import uk.gov.hmrc.play.https.helpers.SecureConnectionProviderImpl
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -34,12 +35,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with MockitoSugar {
   "HttpsStream#stream" should "return a failed future when the connection fails to start" in {
-    val streamTLS = new HttpsStream {
+
+    val stream = new SecureConnectionProviderImpl {
+
       override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = throw new Exception
     }
 
 
-    val res = Enumerator("test".getBytes).run(streamTLS.stream(""))
+    val res = Enumerator("test".getBytes).run(stream.stream(""))
 
     whenReady(res.failed) {
       _ shouldBe an[Exception]
@@ -47,9 +50,10 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
   }
 
   it should "return a failed future if the connection cannot write to the output stream" in {
-    val streamTLS = new HttpsStream {}
 
-    val res = Enumerator("test".getBytes).run(streamTLS.stream(""))
+    val stream = new SecureConnectionProviderImpl {}
+
+    val res = Enumerator("test".getBytes).run(stream.stream(""))
 
     whenReady(res.failed) {
       _ shouldBe an[Exception]
@@ -63,13 +67,14 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
     val mockInputStream = mock[InputStream]
     when(mockConnection.getInputStream).thenReturn(mockInputStream)
 
-    val streamTLS = new HttpsStream {
+    val stream = new SecureConnectionProviderImpl {
+
       override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = mockConnection
     }
 
     val bytes = "test".getBytes
 
-    val res = Enumerator("test".getBytes).run(streamTLS.stream(""))
+    val res = Enumerator("test".getBytes).run(stream.stream(""))
 
     whenReady(res) {
       _ => verify(mockOutputStream).write(bytes)
@@ -93,11 +98,12 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
 
     when(mockInputStream.toString).thenReturn("test")
 
-    val streamTLS = new HttpsStream {
+    val stream = new SecureConnectionProviderImpl {
+
       override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = mockConnection
     }
 
-    val res = Enumerator("test".getBytes).run(streamTLS.stream("", Map("hello" -> "world")))
+    val res = Enumerator("test".getBytes).run(stream.stream("", Map("hello" -> "world")))
 
     whenReady(res) {res =>
       res.header.status shouldBe Status.OK
@@ -108,17 +114,16 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
   }
 
   "HttpsStream#openConnection" should "correctly configure the httpConnection" in {
-    val streamTLS = new HttpsStream {
+
+    val stream = new SecureConnectionProviderImpl {
+
       def testReflector(url: String) = openConnection(url, Map("hello" -> "world"))
     }
 
-    val res = streamTLS.testReflector("https://localhost")
+    val res = stream.testReflector("https://localhost")
 
     res.getDoOutput shouldBe true
     res.getRequestMethod shouldBe "POST"
     res.getRequestProperty("hello") shouldBe "world"
   }
 }
-
-
-
