@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.play.https
 
-import java.net.URL
+import java.net.{HttpURLConnection, URL}
 import javax.net.ssl.HttpsURLConnection
 
 import play.api.libs.iteratee.Iteratee
@@ -30,6 +30,10 @@ object HttpsStream extends HttpsStream
 trait HttpsStream {
   def stream(url: String, extraHeaders: Map[String, String] = Map.empty)(implicit ec: ExecutionContext) = {
     val conn = Try(openConnection(url, extraHeaders))
+    doStreaming(conn)
+  }
+
+  private def doStreaming(conn:Try[HttpURLConnection])(implicit ec: ExecutionContext) = {
     val out = conn.map(_.getOutputStream)
 
     Iteratee.foreach[Array[Byte]](bytes => out.get.write(bytes))
@@ -44,8 +48,15 @@ trait HttpsStream {
       }
   }
 
+
   protected def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = {
-    val conn = new URL(url).openConnection().asInstanceOf[HttpsURLConnection]
+    val protocolURL = new URL(url)
+    val protocol = protocolURL.getProtocol()
+    val conn = protocol match {
+      case "https" => new URL(url).openConnection().asInstanceOf[HttpsURLConnection]
+      case "http" => new URL(url).openConnection().asInstanceOf[HttpURLConnection]
+      case _ => throw new UnsupportedOperationException("You have supplied an invalid URL," + protocol)
+    }
     conn.setDoOutput(true)
     conn.setRequestMethod("POST")
     extraHeaders.foreach{ case (key, value) => conn.setRequestProperty(key, value) }

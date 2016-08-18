@@ -17,7 +17,7 @@
 package uk.gov.hmrc.play.https
 
 import java.io.{InputStream, OutputStream}
-import javax.net.ssl.HttpsURLConnection
+import java.net.{HttpURLConnection, MalformedURLException}
 
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
@@ -32,8 +32,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by rob on 09/08/16.
   */
-class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with MockitoSugar {
-  "HttpsStream#stream" should "return a failed future when the connection fails to start" in {
+class HttpStreamSpec extends FlatSpec with Matchers with ScalaFutures with MockitoSugar {
+  "HttpStream#stream" should "return a failed future when the connection fails to start" in {
     val streamTLS = new HttpsStream {
       override def openConnection(url: String, extraHeaders: Map[String, String] = Map.empty) = throw new Exception
     }
@@ -57,7 +57,7 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
   }
 
   it should "stream to the output when the connection is successful" in {
-    val mockConnection = mock[HttpsURLConnection]
+    val mockConnection = mock[HttpURLConnection]
     val mockOutputStream = mock[OutputStream]
     when(mockConnection.getOutputStream).thenReturn(mockOutputStream)
     val mockInputStream = mock[InputStream]
@@ -79,7 +79,7 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
   it should "return a response code when one is received" in {
     val result = Results.Ok("test")
 
-    val mockConnection = mock[HttpsURLConnection]
+    val mockConnection = mock[HttpURLConnection]
 
     val mockOutputStream = mock[OutputStream]
 
@@ -107,16 +107,36 @@ class HttpsStreamSpec extends FlatSpec with Matchers with ScalaFutures with Mock
     }
   }
 
-  "HttpsStream#openConnection" should "correctly configure the httpConnection" in {
+  "HttpStream#openConnection" should "correctly configure the httpConnection" in {
     val streamTLS = new HttpsStream {
       def testReflector(url: String) = openConnection(url, Map("hello" -> "world"))
     }
 
-    val res = streamTLS.testReflector("https://localhost")
+    val res = streamTLS.testReflector("Http://localhost")
 
     res.getDoOutput shouldBe true
     res.getRequestMethod shouldBe "POST"
     res.getRequestProperty("hello") shouldBe "world"
+  }
+
+  "HttpStream#openConnection" should "correctly reject malformed protocol" in {
+    val streamTLS = new HttpsStream {
+      def testReflector(url: String) = openConnection(url, Map("hello" -> "world"))
+    }
+
+    intercept[MalformedURLException] {
+      val res = streamTLS.testReflector("ttp://localhost")
+    }
+  }
+
+  "HttpStream#openConnection" should "correctly reject unsupported protocol of file" in {
+    val streamTLS = new HttpsStream {
+      def testReflector(url: String) = openConnection(url, Map("hello" -> "world"))
+    }
+
+    intercept[UnsupportedOperationException] {
+      val res = streamTLS.testReflector("file://localhost")
+    }
   }
 }
 
